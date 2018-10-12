@@ -17,40 +17,137 @@ $.getJSON('/locationHistory.json', function(data) {
       return d.timestampMs;
     });
 
-    console.log(new Date(+bounds[0]), new Date(+bounds[1]));
+    // console.log(new Date(+bounds[0]), new Date(+bounds[1]));
     var date = JSON.stringify(new Date(+bounds[0]));
-    console.log(date);
-    // console.log(date.slice(0,11));
 
-      //////GROUP SAME DATES
-      let uniqueDateSet = new Set(); //set automatically eliminates repitition
-      var uniqueDates = [];
+    var datesWRepitition = []; //array of all the dates
 
-      for (var i = 0; i < data.locations.length - 1; i++) {
-          var readableDateTime = JSON.stringify(new Date(+data.locations[i].timestampMs));
-          var readableDate = readableDateTime.slice(1,11); //gives only the first 11 characters of the stringify
+    for (var i = 0; i < data.locations.length - 1; i++) {
+      var readableDateTime = JSON.stringify(new Date(+data.locations[i].timestampMs));
+      var readableDate = readableDateTime.slice(1,11); //gives only the first 11 characters of the stringify
                                                     //in this case it gives me just the date.
-          var readableTime = readableDateTime.slice(12,20); //for future: slice it after the letter T, not characters
+      var readableTime = readableDateTime.slice(12,20); //for future: slice it after the letter T, not characters
+      datesWRepitition.push(readableDate); //array of all the stringified dates with repetition
+    }
 
-          uniqueDateSet.add(readableDate);
-          //if the date occurs more than once, display it only once
+    // console.log(datesWRepitition);
 
-      }
+//baracks code
+    var uniqueDatesCount = {};
+    //extract unique dates with no repition from the array of datesWRepitition
+    for(var i = 0; i < datesWRepitition.length ; i++){
+      uniqueDatesCount[datesWRepitition[i]] = uniqueDatesCount[datesWRepitition[i]] || 0;
+      uniqueDatesCount[datesWRepitition[i]]++;
+    }
+
+    var newLocationHistory = {  //new empty object with an array of days
+      days: []
+    };
+
+    Object.keys(uniqueDatesCount).map(d => {
+    newLocationHistory.days.push({
+      date: d   //pushing key and value pairs of dates that is mapped with uniqueDatesCount
+    })
+  })
+
+  let counts = { //new empty object with an array of just counts:the no. of times google logged my location data
+    count :[]
+  }
+
+  Object.values(uniqueDatesCount).map(c => {
+    counts.count.push({ //pushing key and value pairs  of count
+      count: c
+    })
+  })
 
 
-      //push unique dates into an array
-      uniqueDateSet.forEach(function(uniqueDate){
-        uniqueDates.push(uniqueDate); //is an array of 143 elements with unique dates in it
+for(i=0;i<newLocationHistory.days.length; i++){
+  newLocationHistory.days[i].count = counts.count[i].count
+
+  //newLocationHistory.days[i].count creates a new key "count"
+  //and to each i we are assigning i of the count array
+}
+
+  console.log(newLocationHistory.days);
+  var data = newLocationHistory;
+
+
+  var maxCount = d3.max(data.days,function(d){return d.count;});
+  var minCount = d3.min(data.days,function(d){return d.count;});
+
+
+/*
+  var time = d3.scaleLinear()
+              .domain([2, 693])
+              .range([0, 20]);
+
+  var svg = d3.select("svg"),
+      margin = {top: 20, right: 20, bottom: 30, left: 40},
+      width = +svg.attr("width") - margin.left - margin.right,
+      height = +svg.attr("height") - margin.top - margin.bottom;
+
+  var x = d3.scaleLinear()
+            .range([0, width - (margin.left + margin.right)]);
+
+  var y = d3.scaleLinear()
+          .range([height - (margin.top * 2), 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(10, "");
+
+  var line = d3.line()
+              .x(function(d) { return x(d.date); })
+              .y(function(d) { return y(d.count); });
+/*
+  d3.data(data,functions(error,data){
+    if (error) throw error;
+
+      data.forEach(function(d) {
+        d.date = +d.date;
+        d.count = +d.count;
       });
-        console.log(uniqueDates);
+
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+
+
+/*
+  var svgContainer = d3.select("#inner").append("svg")
+                      .attr("width", 1200)
+                      .attr("height",300)
+
+  var circles = svgContainer.selectAll('circle')
+                            .data(data.days)
+                            .enter()
+                            .append("circle");
+
+  var circleAttributes = circles
+                        .attr("r",10)
+                        .attr("cx",function (d) { return d.days.count; })
+                        .attr("cy", 500);
+
+                        // .style("fill", #000000);
+*/
+
+  // d3.select('#inner')
+  //   .selectAll('circle')
+  //   .data(data.days)
+  //   .enter()
+  //   .append('circle')
+  //   .attr('r', 5)
+  //   .attr('cx', function(d) {
+  //     return time(d);
+  //     })
+  //   // .attr('cx',5)
+  //   .attr('cy', 10);
 
 
 
-
-    //keep a track of same locations in that day. for eg: if multiple timestamps have the same location coordinates, consider it as one location
-
-
-    var time = d3.scaleTime().domain();
 });
 
 
