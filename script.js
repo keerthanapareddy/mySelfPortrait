@@ -10,8 +10,35 @@
 var n = 0;
 var divisor = 10000000;
 var distanceUnit = {units: 'kilometers'};
+let sourceOrDestination = [];
 
-$.getJSON('/locationHistory.json', function(data) {
+function isSourceOrDestination(curTimestamp, prevTimestamp){
+    return Math.abs(curTimestamp - prevTimestamp) < 15000 ;
+}
+
+function isResponsible(location){
+  var hyderabadHome = turf.point([17.5000, 78.3856]);
+  var hyderabadWork = turf.point([17.4253153, 78.44239189999996]);
+  var newyorkHome = turf.point([40.727233, -74.034524]);
+  var cincyHome1 = turf.point([39.134548, -84.510592]);
+  var cincyHome2 = turf.point([43.881638, -85.797401]);
+
+  var distanceCincyHome1 = turf.distance(cincyHome1, turf.point(location), distanceUnit);
+  var distanceCincyHome2 = turf.distance(cincyHome2, turf.point(location), distanceUnit);
+  var distancenewyorkHome = turf.distance(newyorkHome, turf.point(location), distanceUnit);
+  var distanceHydHome = turf.distance(hyderabadHome, turf.point(location), distanceUnit);
+   // console.log(distanceCincyHome1);
+
+   //mess around with these thresholds and see
+  if(distanceCincyHome1 < 3 || distanceCincyHome2 < 6|| distancenewyorkHome < 3 || distanceHydHome < 3 ){ //if distance b/w my home coordinates and the array coordinates is less then 2km,
+     return "responsible";
+  }else{
+     return "irresponsible";
+  }
+}
+
+//check async
+ $.getJSON('/locationHistory.json', function(data) {
   console.log(data.locations.length);
 
     //d3.extent accepts an array of values and returns the boundary(min and max) as an array.
@@ -19,139 +46,78 @@ $.getJSON('/locationHistory.json', function(data) {
       return d.timestampMs;
     });
 
-    // console.log(new Date(+bounds[0]), new Date(+bounds[1]));
-    var date = JSON.stringify(new Date(+bounds[0]));
+    let timeThreshold = 15;
 
-    var time = [];
-    var dayArray =[];
-    var datesWRepitition = []; //array of all the dates
+    let dataLength = data.locations.length;
 
-    var coordinates = [];
-
-
-    for (var i = 0; i < data.locations.length; i++) {
+    for (var i = 1; i < dataLength; i++) {
         var date = new Date(+data.locations[i].timestampMs);
-        var day = date.getDay();
-        var readableDateTime = JSON.stringify(date);
-        var readableDate = readableDateTime.slice(1,11); //gives only the first 11 characters of the stringify
-                                                      //in this case it gives me just the date.
-        var readableTime = readableDateTime.slice(12,20); //for future: slice it after the letter T, not characters
-        datesWRepitition.push(readableDate); //array of all the stringified dates with repetition
-        time.push(readableTime);
-        dayArray.push(day);
+        var curTimestamp = data.locations[i].timestampMs;
+        var prevTimestamp = data.locations[i-1].timestampMs;
 
-        var coordinatesArr = [];
-        var latitudeConverted = data.locations[i].latitudeE7/divisor;
-        var longitudeConverted = data.locations[i].longitudeE7/divisor;
-        // console.log(latitudeConverted, longitudeConverted);
-        coordinatesArr[0] = latitudeConverted;
-        coordinatesArr[1] = longitudeConverted;
-        coordinates.push(coordinatesArr);
+        let isSource = isSourceOrDestination(curTimestamp, prevTimestamp);
+        if(isSource){
+          let location = {};
+          location.date = new Date(+data.locations[i].timestampMs);
+          location.day = date.getDay();
+          location.coordinatesArr = [];
+          location.coordinatesArr[0] = data.locations[i].latitudeE7/divisor;
+          location.coordinatesArr[1] = data.locations[i].longitudeE7/divisor;
+          location.type = isResponsible(location.coordinatesArr);
+          sourceOrDestination.push(location);
+        }
     }
 
-      var mapsHistory ={
-        history:[]
-      };
+    console.log(sourceOrDestination);
 
-    datesWRepitition.map(d => {
-      mapsHistory.history.push({
-        date : d
+    //Select SVG element
+    var svg = d3.select('svg'),
+
+        margin = 200,
+        width = svg.attr("width") - margin,
+        height = svg.attr("height") - margin;
+
+    var xScale = d3.scaleBand().range([0, width]);
+        yScale = d3.scaleBand().range([height,0]).padding(1);
+
+
+    var g = svg.append("g")
+              .attr("transform", "translate(" + 100 + "," + 100 + ")");
+
+    xScale.domain(sourceOrDestination.map(function(d) { return d.date.getMonth()+1+'-'+ d.date.getFullYear(); }));
+    // xScale.domain([0, 10]);
+
+    g.append("g")
+      .attr("class","axis")
+      .style("font", "14px times")
+      .style("font-family","Quicksand")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(xScale));
+
+    g.selectAll("circles")
+    	.data(sourceOrDestination)
+      .enter().append("circle")
+      .filter(function(d) { return d.type == "irresponsible"; })
+      .attr("r", 10)
+      .attr("cx", function(d){return xScale(d.date.getMonth()+1+'-'+ d.date.getFullYear())+33;})
+      // .attr("cx", (i) => {(width*i)/8})  //i goes through the entire data set of 770 elements
+      .attr("cy", (d,i) => (Math.random()*height)-30)
+      .attr("fill",function(d){
+        if(d.day == "1" || d.day == "2" || d.day == "3" || d.day == "4" || d.day == "5"){
+          return "#90D1B7" //green
+        }else if(d.day == "0" || d.day == "6"){
+          return "#E8A8C6" //pink
+        }
       })
-    })
-
-  console.log(mapsHistory.history);
-
-        var hyderabadHome = turf.point([17.5000, 78.3856]);
-        var hyderabadWork = turf.point([17.4253153, 78.44239189999996]);
-        var newyorkHome = turf.point([40.727233, -74.034524]);
-        var cincyHome1 = turf.point([39.134548, -84.510592]);
-        var cincyHome2 = turf.point([43.881638, -85.797401]);
-        // console.log(turf.distance([17.5000, 78.3856], [17.4253153, 78.44239189999996], distanceUnit ));
-        console.log(mapsHistory.history[0].date);
-        console.log(mapsHistory.history[mapsHistory.history.length-1].date);
-
-    for(i = mapsHistory.history.length-1; i >= 0; i--){
-       mapsHistory.history[i].coordinates = coordinates[i];
-       mapsHistory.history[i].time = time[i];
-       mapsHistory.history[i].day = dayArray[i];
-     // console.log(mapsHistory.history[i].date.getMonth());
-      var datesSliced = mapsHistory.history[i].date.slice(0,7);
-        var distanceCincyHome1 = turf.distance(cincyHome1, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
-        var distanceCincyHome2 = turf.distance(cincyHome2, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
-        var distancenewyorkHome = turf.distance(newyorkHome, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
-        var distanceHydHome = turf.distance(hyderabadHome, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
-        // console.log(distanceCincyHome1);
-
-        //mess around with these thresholds and see
-        if(distanceCincyHome1 < 4 || distanceCincyHome2 < 4 || distancenewyorkHome < 5 || distanceHydHome < 5 ){ //if distance b/w my home coordinates and the array coordinates is less then 2km,
-          mapsHistory.history.splice(i,1);
-          // i--;
-          continue;
-        } 
-    }
-    //
-    //
-    // console.log(mapsHistory.history.length);
-    //
-      console.log(mapsHistory.history);
+      .attr("fill-opacity", 0.7)
+      .attr("font-family","openSans")
+      .attr("font-size","50px");
 
 
 
-    //if the key exists add 1 to the value otherwise create the key and set it to 0
-    var uniqueDatesCount = {};
-    //extract unique dates with no repitition from the array of datesWRepitition
-    for(var i = 0; i < datesWRepitition.length ; i++){
-      if (uniqueDatesCount.hasOwnProperty([datesWRepitition[i]])){
-        // console.log(uniqueDatesCount[datesWRepitition[i]])
-        uniqueDatesCount[datesWRepitition[i]]++
-      }else{
-        uniqueDatesCount[datesWRepitition[i]] = 0;
-      }
-    }
-
-
-
-//creating new object to push clean data
-    var newLocationHistory = {  //new empty object with an array of days
-      locationData: []
-    };
-
-    Object.keys(uniqueDatesCount).map(d => {
-    newLocationHistory.locationData.push({
-      date: d   //pushing key and value pairs of dates that is mapped with uniqueDatesCount
-    })
-  })
-
-  let counts = { //new empty object with an array of just counts:the no. of times google logged my location data
-    count :[]
-  }
-
-  Object.values(uniqueDatesCount).map(c => {
-    counts.count.push({ //pushing key and value pairs  of count
-      count: c
-    })
-  })
-
-for(i=0;i<newLocationHistory.locationData.length; i++){
-  newLocationHistory.locationData[i].count = counts.count[i].count;
-  //newLocationHistory.days[i].count creates a new key "count"
-  //and to each i we are assigning i of the count array
-}
-
-
-  console.log(newLocationHistory);
-
-
-  // var divisor = 10000000; lat and log divide by divisor/
-  // make lat and long into a pair. array inside an array. coordinates
-  //Date.prototype.getDay() to get the day
-  //eliminate same location: turf.distance if less than threshold, consider same locationHistory
-  //for every same location, count and draw one circle
-  //date object js find 0-6 weekdays, use this for color.
-
-
-
-
+    //date along x axis
+    //time along y aixs
+    //radius of the circle can be curTimestamp - prevTimestamp/something drawable
 
 
 });

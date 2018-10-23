@@ -1,0 +1,17 @@
+html,
+body
+{
+    height: 100%;
+    margin:50;
+    padding: 0;
+    background: #F9F5EC;
+}
+
+
+
+#mySVG{
+  margin-left: 300px;
+  display: block;
+  background: #F9F5EC;
+
+}
