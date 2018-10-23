@@ -22,17 +22,23 @@ $.getJSON('/locationHistory.json', function(data) {
     // console.log(new Date(+bounds[0]), new Date(+bounds[1]));
     var date = JSON.stringify(new Date(+bounds[0]));
 
+    var time = [];
+    var dayArray =[];
     var datesWRepitition = []; //array of all the dates
 
     var coordinates = [];
 
 
     for (var i = 0; i < data.locations.length; i++) {
-        var readableDateTime = JSON.stringify(new Date(+data.locations[i].timestampMs));
+        var date = new Date(+data.locations[i].timestampMs);
+        var day = date.getDay();
+        var readableDateTime = JSON.stringify(date);
         var readableDate = readableDateTime.slice(1,11); //gives only the first 11 characters of the stringify
                                                       //in this case it gives me just the date.
         var readableTime = readableDateTime.slice(12,20); //for future: slice it after the letter T, not characters
         datesWRepitition.push(readableDate); //array of all the stringified dates with repetition
+        time.push(readableTime);
+        dayArray.push(day);
 
         var coordinatesArr = [];
         var latitudeConverted = data.locations[i].latitudeE7/divisor;
@@ -53,30 +59,42 @@ $.getJSON('/locationHistory.json', function(data) {
       })
     })
 
+  console.log(mapsHistory.history);
 
-    for(i = 0;i < mapsHistory.history.length; i++){
-      mapsHistory.history[i].coordinates = coordinates[i];
-    }
+        var hyderabadHome = turf.point([17.5000, 78.3856]);
+        var hyderabadWork = turf.point([17.4253153, 78.44239189999996]);
+        var newyorkHome = turf.point([40.727233, -74.034524]);
+        var cincyHome1 = turf.point([39.134548, -84.510592]);
+        var cincyHome2 = turf.point([43.881638, -85.797401]);
+        // console.log(turf.distance([17.5000, 78.3856], [17.4253153, 78.44239189999996], distanceUnit ));
+        console.log(mapsHistory.history[0].date);
+        console.log(mapsHistory.history[mapsHistory.history.length-1].date);
 
-    console.log(mapsHistory.history);
-
-    var hyderabadHome = turf.point([17.5000, 78.3856]);
-    var cincyHome1 = turf.point([39.134548, -84.510592]);
-    var cincyHome2 = turf.point([43.881638, -85.797401]);
-
-    for(i = 0;i < mapsHistory.history.length; i++){
+    for(i = mapsHistory.history.length-1; i >= 0; i--){
+       mapsHistory.history[i].coordinates = coordinates[i];
+       mapsHistory.history[i].time = time[i];
+       mapsHistory.history[i].day = dayArray[i];
+     // console.log(mapsHistory.history[i].date.getMonth());
       var datesSliced = mapsHistory.history[i].date.slice(0,7);
-      if( datesSliced == '2018-08' || datesSliced == '2018-07'){
-        var count = 0;
-        var distanceCincyHome1 = turf.distance(cincyHome2, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
+        var distanceCincyHome1 = turf.distance(cincyHome1, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
+        var distanceCincyHome2 = turf.distance(cincyHome2, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
+        var distancenewyorkHome = turf.distance(newyorkHome, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
+        var distanceHydHome = turf.distance(hyderabadHome, turf.point(mapsHistory.history[i].coordinates), distanceUnit);
         // console.log(distanceCincyHome1);
-        if(distanceCincyHome1 < 2){ //if distance b/w my home coordinates and the array coordinates is less then 2km,
-          mapsHistory.history.splice(i,1); // remove those from the array
-        }
-      }
-    }
 
+        //mess around with these thresholds and see
+        if(distanceCincyHome1 < 4 || distanceCincyHome2 < 4 || distancenewyorkHome < 5 || distanceHydHome < 5 ){ //if distance b/w my home coordinates and the array coordinates is less then 2km,
+          mapsHistory.history.splice(i,1);
+          // i--;
+          continue;
+        } 
+    }
+    //
+    //
+    // console.log(mapsHistory.history.length);
+    //
       console.log(mapsHistory.history);
+
 
 
     //if the key exists add 1 to the value otherwise create the key and set it to 0
